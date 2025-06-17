@@ -66,7 +66,12 @@ def text_fingerprint(text: str) -> str:
 
 
 def parse_findings(text: str):
-    """Parse findings from raw PDF text using simple heuristics."""
+    """Parse findings from raw PDF text using simple heuristics.
+
+    If no structured findings are detected, fall back to splitting the text on
+    double newlines and treat each chunk as one finding.
+    """
+
     findings = []
     current = {
         "title": "",
@@ -113,6 +118,38 @@ def parse_findings(text: str):
             current["description"] += " " + line
 
     commit()
+
+    if findings:
+        return findings
+
+    # Fallback: split text by double newlines and attempt to guess fields
+    chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
+    for chunk in chunks:
+        guess = {"title": "", "severity": "", "description": "", "remediation": ""}
+        lines = [l.strip() for l in chunk.splitlines() if l.strip()]
+        if not lines:
+            continue
+        guess["title"] = lines[0]
+        severity_match = re.search(r"\b(high|medium|low|critical)\b", chunk, re.I)
+        if severity_match:
+            guess["severity"] = severity_match.group(1).title()
+        rem_start = None
+        for i, ln in enumerate(lines):
+            if ln.lower().startswith("remediation") or ln.lower().startswith("recommendation"):
+                rem_start = i
+                break
+        if rem_start is not None:
+            guess["description"] = " ".join(lines[1:rem_start]).strip()
+            guess["remediation"] = " ".join(lines[rem_start + 1:]).strip()
+        else:
+            guess["description"] = " ".join(lines[1:]).strip()
+        findings.append(guess)
+
+    if not findings:
+        # still nothing, store raw chunks
+        for chunk in chunks:
+            findings.append({"raw": chunk})
+
     return findings
 
 
@@ -175,7 +212,7 @@ def upload_file():
 
 @main.route("/upload", methods=["POST"])
 def api_upload():
-    """API endpoint to upload a PDF and return parsed findings."""
+    """Handle PDF uploads via form or API."""
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
     file = request.files["file"]
@@ -186,11 +223,24 @@ def api_upload():
 
     filename = secure_filename(file.filename)
     upload_path = current_app.config["UPLOAD_FOLDER"] / filename
-    file.save(upload_path)
+    data = file.read()
+    with open(upload_path, "wb") as f:
+        f.write(data)
 
     text = extract_text(upload_path)
     findings = parse_findings(text)
-    return jsonify({"findings": findings})
+
+    session["raw_text"] = text
+    session["findings"] = findings
+    if findings:
+        session["columns"] = list(findings[0].keys())
+    else:
+        session["columns"] = ["raw"]
+
+    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+        return jsonify({"findings": findings})
+    flash("File uploaded and parsed successfully")
+    return redirect(url_for("main.review"))
 
 
 @main.route("/review")

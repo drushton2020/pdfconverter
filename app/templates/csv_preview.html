@@ -7,7 +7,8 @@
   <style>
     table, th, td { border: 1px solid #ccc; border-collapse: collapse; }
     th, td { padding: 4px; }
-    th[contenteditable], td[contenteditable] { background: #eef; }
+    th[contenteditable] { background: #eef; }
+    td textarea { width: 100%; height: 60px; }
   </style>
 </head>
 <body>
@@ -24,7 +25,7 @@
     {% for row in findings %}
       <tr>
         {% for col in columns %}
-          <td contenteditable="true">{{ row.get(col, '') }}</td>
+          <td><textarea>{{ row.get(col, '') }}</textarea></td>
         {% endfor %}
       </tr>
     {% endfor %}
@@ -37,7 +38,7 @@ $(function(){
   $('#addRowBtn').on('click', function(){
     var cols = $('#csvTable thead th').length;
     var row = $('<tr>');
-    for(var i=0;i<cols;i++) row.append('<td contenteditable="true"></td>');
+    for(var i=0;i<cols;i++) row.append('<td><textarea></textarea></td>');
     $('#csvTable tbody').append(row);
   });
   $('#exportBtn').on('click', function(){
@@ -46,7 +47,7 @@ $(function(){
     var rows=[];
     $('#csvTable tbody tr').each(function(){
       var r=[];
-      $(this).find('td').each(function(){ r.push($(this).text()); });
+      $(this).find('td textarea').each(function(){ r.push($(this).val()); });
       rows.push(r);
     });
     fetch('/csv_preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({columns:cols,rows:rows})})
