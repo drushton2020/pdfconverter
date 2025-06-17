@@ -9,8 +9,9 @@
   <style>
     table, th, td { border: 1px solid #ccc; border-collapse: collapse; }
     th, td { padding: 4px; }
-    th[contenteditable], td[contenteditable] { background: #eef; }
-    #raw-container { display: none; margin-top: 1em; }
+    th[contenteditable] { background: #eef; }
+    #raw-container { margin-top: 1em; }
+    td textarea { width: 100%; height: 60px; }
   </style>
 </head>
 <body>
@@ -19,10 +20,6 @@
   <button id="addColumnBtn">Add Column</button>
   <button id="saveRuleBtn">Save Parsing Rule</button>
   <a href="{{ url_for('main.list_rules') }}">Manage Rules</a>
-  <div id="raw-container">
-    <h3>Raw Text</h3>
-    <textarea style="width:100%;height:200px;">{{ raw_text }}</textarea>
-  </div>
   <table id="findingsTable">
     <thead>
       <tr>
@@ -36,7 +33,7 @@
     {% for f in findings %}
       <tr>
         {% for col in columns %}
-          <td contenteditable="true">{{ f.get(col, '') }}</td>
+          <td><textarea>{{ f.get(col, '') }}</textarea></td>
         {% endfor %}
         <td><button class="removeRow">Delete</button></td>
       </tr>
@@ -44,7 +41,11 @@
     </tbody>
   </table>
   <button id="addRowBtn">Add Finding</button>
-<script>
+  <div id="raw-container">
+    <h3>Raw Text</h3>
+    <textarea style="width:100%;height:200px;">{{ raw_text }}</textarea>
+  </div>
+  <script>
 $(function(){
   var fileHash = "{{ file_hash }}";
   var metadataHash = "{{ metadata_hash }}";
@@ -55,7 +56,7 @@ $(function(){
   $('#addRowBtn').on('click', function(){
     var cols = $('#findingsTable thead th').length - 1;
     var row = $('<tr>');
-    for(var i=0;i<cols;i++) row.append('<td contenteditable="true"></td>');
+    for(var i=0;i<cols;i++) row.append('<td><textarea></textarea></td>');
     row.append('<td><button class="removeRow">Delete</button></td>');
     $('#findingsTable tbody').append(row);
   });
@@ -67,7 +68,7 @@ $(function(){
     if(!name) return;
     $('<th contenteditable="true">'+name+'</th>').insertBefore('#findingsTable th:last');
     $('#findingsTable tbody tr').each(function(){
-      $('<td contenteditable="true"></td>').insertBefore($(this).find('td:last'));
+      $('<td><textarea></textarea></td>').insertBefore($(this).find('td:last'));
     });
   });
   $('#findingsTable thead').on('dblclick', 'th', function(){
