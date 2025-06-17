@@ -25,22 +25,18 @@
   <table id="findingsTable">
     <thead>
       <tr>
-        <th contenteditable="true">title</th>
-        <th contenteditable="true">severity</th>
-        <th contenteditable="true">description</th>
-        <th contenteditable="true">remediation</th>
-        <th contenteditable="true">assets</th>
+        {% for col in columns %}
+          <th contenteditable="true">{{ col }}</th>
+        {% endfor %}
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
     {% for f in findings %}
       <tr>
-        <td contenteditable="true">{{ f.title }}</td>
-        <td contenteditable="true">{{ f.severity }}</td>
-        <td contenteditable="true">{{ f.description }}</td>
-        <td contenteditable="true">{{ f.remediation }}</td>
-        <td contenteditable="true">{{ f.assets }}</td>
+        {% for col in columns %}
+          <td contenteditable="true">{{ f.get(col, '') }}</td>
+        {% endfor %}
         <td><button class="removeRow">Delete</button></td>
       </tr>
     {% endfor %}
@@ -49,6 +45,7 @@
   <button id="addRowBtn">Add Finding</button>
 <script>
 $(function(){
+  var fileHash = "{{ file_hash }}";
   $('#debugBtn').on('click', function(){
     $('#raw-container').toggle();
   });
@@ -96,7 +93,7 @@ $(function(){
       var t=$(this).text();
       if(t!=='Actions') cols.push(t);
     });
-    $.ajax({url:'/save_rule',method:'POST',contentType:'application/json',data:JSON.stringify({name:name,rule:{columns:cols}})})
+    $.ajax({url:'/save_rule',method:'POST',contentType:'application/json',data:JSON.stringify({name:name,rule:{columns:cols,file_hash:fileHash}})})
     .done(function(){alert('Rule saved');})
     .fail(function(){alert('Failed to save rule');});
   });

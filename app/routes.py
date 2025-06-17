@@ -1,5 +1,6 @@
 import re
 import json
+import hashlib
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, current_app, flash, jsonify, session
 from werkzeug.utils import secure_filename
 from pathlib import Path
@@ -12,6 +13,20 @@ ALLOWED_EXTENSIONS = {'pdf'}
 
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def load_rules():
+    """Load all saved parsing rules from the rules folder."""
+    rules = []
+    rules_dir = current_app.config['RULES_FOLDER']
+    if not rules_dir.exists():
+        return rules
+    for path in rules_dir.glob('*.json'):
+        try:
+            rules.append(json.loads(path.read_text()))
+        except Exception:
+            continue
+    return rules
 
 
 def extract_text(path: Path) -> str:
@@ -80,11 +95,33 @@ def upload_file():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             upload_path = current_app.config['UPLOAD_FOLDER'] / filename
-            file.save(upload_path)
+            data = file.read()
+            file_hash = hashlib.md5(data).hexdigest()
+            with open(upload_path, 'wb') as f:
+                f.write(data)
+
             text = extract_text(upload_path)
+            with pdfplumber.open(str(upload_path)) as pdf:
+                first_page = pdf.pages[0].extract_text() or ""
+
+            rules = load_rules()
+            matched = None
+            for r in rules:
+                if r.get('file_hash') == file_hash:
+                    matched = r
+                    break
+                regex = r.get('regex')
+                if regex and re.search(regex, first_page, re.IGNORECASE):
+                    matched = r
+                    break
+
             findings = parse_findings(text)
+            columns = matched.get('columns') if matched else ['title', 'severity', 'description', 'remediation', 'assets']
+
             session['raw_text'] = text
             session['findings'] = findings
+            session['columns'] = columns
+            session['file_hash'] = file_hash
             flash('File uploaded and parsed successfully')
             return redirect(url_for('main.review'))
     return render_template('upload.html')
@@ -115,7 +152,9 @@ def review():
     """Display a table for reviewing parsed findings."""
     findings = session.get('findings', [])
     raw_text = session.get('raw_text', '')
-    return render_template('review.html', findings=findings, raw_text=raw_text)
+    columns = session.get('columns', ['title', 'severity', 'description', 'remediation', 'assets'])
+    file_hash = session.get('file_hash', '')
+    return render_template('review.html', findings=findings, raw_text=raw_text, columns=columns, file_hash=file_hash)
 
 
 @main.route('/save_rule', methods=['POST'])
@@ -126,6 +165,11 @@ def save_rule():
     safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', data['name'])
     rules_dir = current_app.config['RULES_FOLDER']
     rules_dir.mkdir(exist_ok=True)
+    rule = data['rule']
+    if 'file_hash' not in rule:
+        file_hash = session.get('file_hash')
+        if file_hash:
+            rule['file_hash'] = file_hash
     path = rules_dir / f"{safe_name}.json"
-    path.write_text(json.dumps(data['rule'], indent=2))
+    path.write_text(json.dumps(rule, indent=2))
     return jsonify({'status': 'ok'})
