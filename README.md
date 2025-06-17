@@ -30,3 +30,9 @@ python run.py
 Then navigate to `http://localhost:5000/` and upload a pentest report PDF. Uploaded files are stored in the `uploads/` directory.
 
 After uploading, you will be redirected to `/review` where the extracted findings are displayed in an editable table. You can add or remove rows and columns, rename the headers, and toggle a debug view that shows the raw text next to the parsed data. A "Save Parsing Rule" button lets you store custom column configurations to the `rules/` directory.
+
+## Saving Parsing Rules
+
+When reviewing a report you can click **Save Parsing Rule** to persist your preferred column setup along with a signature of the uploaded file. Rules are stored as JSON files in the `rules/` folder and include the MD5 hash of the report or a regex that matches text on the first page. On future uploads the application automatically checks these rules using the file hash or first page content and applies the matching column configuration.
+
+You can also save rules programmatically by sending a `POST` request to the `/save_rule` endpoint with a JSON body containing a `name` and a `rule` object.
