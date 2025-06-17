@@ -18,3 +18,13 @@ python pdf_to_csv.py input.pdf output.csv
 
 The script uses a few simple heuristics to detect lines that look like findings (numbered or containing keywords such as "Finding" or "Vulnerability"). The output CSV contains the detected severity (if the line contains text like `[High]`) and the finding description.
 
+
+## Web Interface
+
+The project now includes a basic Flask web interface. Start the development server with:
+
+```bash
+python run.py
+```
+
+Then navigate to `http://localhost:5000/` and upload a pentest report PDF. Uploaded files are stored in the `uploads/` directory.
