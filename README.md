@@ -33,6 +33,8 @@ After uploading, you will be redirected to `/review` where the extracted finding
 
 ## Saving Parsing Rules
 
-When reviewing a report you can click **Save Parsing Rule** to persist your preferred column setup along with a signature of the uploaded file. Rules are stored as JSON files in the `rules/` folder and include the MD5 hash of the report or a regex that matches text on the first page. On future uploads the application automatically checks these rules using the file hash or first page content and applies the matching column configuration.
+When reviewing a report you can click **Save Parsing Rule** to persist your preferred column setup along with a signature of the uploaded file. Rules are stored as JSON files in the `rules/` folder and include identifiers such as the MD5 hash, a hash of the PDF metadata and a fingerprint of the first 100 words. On future uploads the application automatically checks these rules and applies the matching column configuration.
+
+Visit `/rules` to view saved rules and delete ones you no longer need. Saving a rule with an existing name will overwrite the previous file.
 
 You can also save rules programmatically by sending a `POST` request to the `/save_rule` endpoint with a JSON body containing a `name` and a `rule` object.
