@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Review Findings</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <style>
+    table, th, td { border: 1px solid #ccc; border-collapse: collapse; }
+    th, td { padding: 4px; }
+    th[contenteditable], td[contenteditable] { background: #eef; }
+    #raw-container { display: none; margin-top: 1em; }
+  </style>
+</head>
+<body>
+  <h1>Review Findings</h1>
+  <button id="debugBtn">Parsing Debug View</button>
+  <button id="addColumnBtn">Add Column</button>
+  <button id="saveRuleBtn">Save Parsing Rule</button>
+  <div id="raw-container">
+    <h3>Raw Text</h3>
+    <textarea style="width:100%;height:200px;">{{ raw_text }}</textarea>
+  </div>
+  <table id="findingsTable">
+    <thead>
+      <tr>
+        <th contenteditable="true">title</th>
+        <th contenteditable="true">severity</th>
+        <th contenteditable="true">description</th>
+        <th contenteditable="true">remediation</th>
+        <th contenteditable="true">assets</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for f in findings %}
+      <tr>
+        <td contenteditable="true">{{ f.title }}</td>
+        <td contenteditable="true">{{ f.severity }}</td>
+        <td contenteditable="true">{{ f.description }}</td>
+        <td contenteditable="true">{{ f.remediation }}</td>
+        <td contenteditable="true">{{ f.assets }}</td>
+        <td><button class="removeRow">Delete</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <button id="addRowBtn">Add Finding</button>
+<script>
+$(function(){
+  $('#debugBtn').on('click', function(){
+    $('#raw-container').toggle();
+  });
+  $('#addRowBtn').on('click', function(){
+    var cols = $('#findingsTable thead th').length - 1;
+    var row = $('<tr>');
+    for(var i=0;i<cols;i++) row.append('<td contenteditable="true"></td>');
+    row.append('<td><button class="removeRow">Delete</button></td>');
+    $('#findingsTable tbody').append(row);
+  });
+  $(document).on('click', '.removeRow', function(){
+    $(this).closest('tr').remove();
+  });
+  $('#addColumnBtn').on('click', function(){
+    var name = prompt('Column name?','custom');
+    if(!name) return;
+    $('<th contenteditable="true">'+name+'</th>').insertBefore('#findingsTable th:last');
+    $('#findingsTable tbody tr').each(function(){
+      $('<td contenteditable="true"></td>').insertBefore($(this).find('td:last'));
+    });
+  });
+  $('#findingsTable thead').on('dblclick', 'th', function(){
+    if($(this).text()==='Actions') return;
+    var n = prompt('Rename column', $(this).text());
+    if(n) $(this).text(n);
+  });
+  $('#findingsTable tbody').sortable({ items: 'tr'});
+  $('#findingsTable thead tr').sortable({ items: '> th:not(:last)', stop: function(e, ui){
+    var from = ui.item.data('previndex');
+    var to = ui.item.index();
+    $('#findingsTable tbody tr').each(function(){
+      var cells = $(this).children();
+      if(to<from){
+        cells.eq(from).insertBefore(cells.eq(to));
+      }else{
+        cells.eq(from).insertAfter(cells.eq(to));
+      }
+    });
+  }, start:function(e,ui){ ui.item.data('previndex',ui.item.index()); }});
+  $('#saveRuleBtn').on('click', function(){
+    var name = prompt('Rule name');
+    if(!name) return;
+    var cols=[];
+    $('#findingsTable thead th').each(function(){
+      var t=$(this).text();
+      if(t!=='Actions') cols.push(t);
+    });
+    $.ajax({url:'/save_rule',method:'POST',contentType:'application/json',data:JSON.stringify({name:name,rule:{columns:cols}})})
+    .done(function(){alert('Rule saved');})
+    .fail(function(){alert('Failed to save rule');});
+  });
+});
+</script>
+</body>
+</html>

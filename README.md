@@ -28,3 +28,5 @@ python run.py
 ```
 
 Then navigate to `http://localhost:5000/` and upload a pentest report PDF. Uploaded files are stored in the `uploads/` directory.
+
+After uploading, you will be redirected to `/review` where the extracted findings are displayed in an editable table. You can add or remove rows and columns, rename the headers, and toggle a debug view that shows the raw text next to the parsed data. A "Save Parsing Rule" button lets you store custom column configurations to the `rules/` directory.

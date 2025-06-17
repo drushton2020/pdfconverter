@@ -1,5 +1,6 @@
 import re
-from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, current_app, flash, jsonify
+import json
+from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, current_app, flash, jsonify, session
 from werkzeug.utils import secure_filename
 from pathlib import Path
 import pdfplumber
@@ -80,8 +81,12 @@ def upload_file():
             filename = secure_filename(file.filename)
             upload_path = current_app.config['UPLOAD_FOLDER'] / filename
             file.save(upload_path)
-            flash('File uploaded successfully')
-            return redirect(url_for('main.upload_file'))
+            text = extract_text(upload_path)
+            findings = parse_findings(text)
+            session['raw_text'] = text
+            session['findings'] = findings
+            flash('File uploaded and parsed successfully')
+            return redirect(url_for('main.review'))
     return render_template('upload.html')
 
 
@@ -103,3 +108,24 @@ def api_upload():
     text = extract_text(upload_path)
     findings = parse_findings(text)
     return jsonify({'findings': findings})
+
+
+@main.route('/review')
+def review():
+    """Display a table for reviewing parsed findings."""
+    findings = session.get('findings', [])
+    raw_text = session.get('raw_text', '')
+    return render_template('review.html', findings=findings, raw_text=raw_text)
+
+
+@main.route('/save_rule', methods=['POST'])
+def save_rule():
+    data = request.get_json()
+    if not data or 'name' not in data or 'rule' not in data:
+        return jsonify({'error': 'Invalid data'}), 400
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', data['name'])
+    rules_dir = current_app.config['RULES_FOLDER']
+    rules_dir.mkdir(exist_ok=True)
+    path = rules_dir / f"{safe_name}.json"
+    path.write_text(json.dumps(data['rule'], indent=2))
+    return jsonify({'status': 'ok'})
