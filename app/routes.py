@@ -1,7 +1,7 @@
 import re
 import json
 import hashlib
-from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, current_app, flash, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, send_file, current_app, flash, jsonify, session
 from werkzeug.utils import secure_filename
 from pathlib import Path
 import pdfplumber
@@ -173,3 +173,26 @@ def save_rule():
     path = rules_dir / f"{safe_name}.json"
     path.write_text(json.dumps(rule, indent=2))
     return jsonify({'status': 'ok'})
+
+@main.route('/csv_preview', methods=['GET', 'POST'])
+def csv_preview():
+    """Allow final CSV tweaks and export."""
+    if request.method == 'POST':
+        data = request.get_json()
+        if not data or 'columns' not in data or 'rows' not in data:
+            return jsonify({'error': 'Invalid data'}), 400
+        from io import StringIO, BytesIO
+        import csv
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(data['columns'])
+        for row in data['rows']:
+            writer.writerow(row)
+        mem = BytesIO()
+        mem.write(output.getvalue().encode('utf-8'))
+        mem.seek(0)
+        return send_file(mem, as_attachment=True, download_name='findings.csv',
+                          mimetype='text/csv')
+    findings = session.get('findings', [])
+    columns = session.get('columns', ['title', 'severity', 'description', 'remediation', 'assets'])
+    return render_template('csv_preview.html', findings=findings, columns=columns)

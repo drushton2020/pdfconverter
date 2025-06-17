@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CSV Preview</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    table, th, td { border: 1px solid #ccc; border-collapse: collapse; }
+    th, td { padding: 4px; }
+    th[contenteditable], td[contenteditable] { background: #eef; }
+  </style>
+</head>
+<body>
+  <h1>CSV Preview</h1>
+  <table id="csvTable">
+    <thead>
+      <tr>
+        {% for col in columns %}
+          <th contenteditable="true">{{ col }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in findings %}
+      <tr>
+        {% for col in columns %}
+          <td contenteditable="true">{{ row.get(col, '') }}</td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <button id="addRowBtn">Add Row</button>
+  <button id="exportBtn">Export CSV</button>
+<script>
+$(function(){
+  $('#addRowBtn').on('click', function(){
+    var cols = $('#csvTable thead th').length;
+    var row = $('<tr>');
+    for(var i=0;i<cols;i++) row.append('<td contenteditable="true"></td>');
+    $('#csvTable tbody').append(row);
+  });
+  $('#exportBtn').on('click', function(){
+    var cols=[];
+    $('#csvTable thead th').each(function(){ cols.push($(this).text()); });
+    var rows=[];
+    $('#csvTable tbody tr').each(function(){
+      var r=[];
+      $(this).find('td').each(function(){ r.push($(this).text()); });
+      rows.push(r);
+    });
+    fetch('/csv_preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({columns:cols,rows:rows})})
+    .then(resp=>{if(!resp.ok) throw new Error('bad'); return resp.blob();})
+    .then(blob=>{var url=window.URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='findings.csv';a.click();window.URL.revokeObjectURL(url);})
+    .catch(()=>alert('Failed to export CSV'));
+  });
+});
+</script>
+</body>
+</html>
