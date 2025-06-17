@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Parsing Rules</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <h1>Parsing Rules</h1>
+  <ul id="rules">
+    {% for n in names %}
+      <li>{{ n }} <button class="delete" data-name="{{ n }}">Delete</button></li>
+    {% endfor %}
+  </ul>
+  <script>
+  $(function(){
+    $('.delete').on('click', function(){
+      if(!confirm('Delete rule '+$(this).data('name')+'?')) return;
+      var name=$(this).data('name');
+      $.ajax({url:'/delete_rule',method:'POST',contentType:'application/json',data:JSON.stringify({name:name})})
+        .done(function(){location.reload();})
+        .fail(function(){alert('Failed to delete');});
+    });
+  });
+  </script>
+</body>
+</html>
